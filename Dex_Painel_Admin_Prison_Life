@@ -1,0 +1,145 @@
+-- // NEPTROI V6001 - PROTECTED EDITION (evertonjosea) //
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Limpeza
+for _, v in pairs(Player.PlayerGui:GetChildren()) do
+    if v.Name == "NeptroiV6001_Prot" then v:Destroy() end
+end
+
+-- // ANTI-KICK & ANTI-BAN FUNCTIONAL //
+local mt = getrawmetatable(game)
+local old = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    -- Bloqueia tentativas do jogo de kickar ou banir por velocidade/teleporte
+    if method == "Kick" or method == "kick" then
+        return nil
+    end
+    if self.Name == "MainEvent" or self.Name == "RemoteEvent" then
+        if args[1] == "CheckFiend" or args[1] == "Ban" then
+            return nil
+        end
+    end
+    return old(self, unpack(args))
+end)
+setreadonly(mt, true)
+
+local ScreenGui = Instance.new("ScreenGui", Player.PlayerGui)
+ScreenGui.Name = "NeptroiV6001_Prot"
+ScreenGui.ResetOnSpawn = false
+
+-- FUNÇÃO ARRASTAR (DRAG)
+local function Drag(gui)
+    local dragging, inputStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; inputStart = input.Position; startPos = gui.Position
+        end
+    end)
+    gui.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - inputStart
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+end
+
+-- PAINEL ULTRA COMPACTO
+local Main = Instance.new("Frame", ScreenGui)
+Main.Size = UDim2.new(0, 160, 0, 185)
+Main.Position = UDim2.new(0.5, -80, 0.5, -92)
+Main.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+Main.Visible = false 
+Drag(Main)
+Instance.new("UICorner", Main)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(170, 0, 255)
+
+local List = Instance.new("TextLabel", Main)
+List.Size = UDim2.new(1, -10, 0, 120); List.Position = UDim2.new(0, 5, 0, 5); List.BackgroundTransparency = 1
+List.TextColor3 = Color3.new(1, 1, 1); List.Font = "Code"; List.TextSize = 8; List.TextXAlignment = "Left"; List.TextYAlignment = "Top"
+List.Text = [[ [ V6001 PROTECTED ]
+:esp - Nomes ESP
+:to [nome] - Teleport
+:speed [n] - Vel
+:jp [n] - Pulo
+:nc - Noclip
+:re - Reset / :f - Fugir
+Status: Anti-Ban Ativo]]
+
+local CmdInput = Instance.new("TextBox", Main)
+CmdInput.Size = UDim2.new(1, -20, 0, 25); CmdInput.Position = UDim2.new(0, 10, 1, -35)
+CmdInput.Text = ""; CmdInput.PlaceholderText = "COMANDO"
+CmdInput.BackgroundColor3 = Color3.fromRGB(25, 25, 30); CmdInput.TextColor3 = Color3.new(1, 1, 1); CmdInput.Font = "Code"; CmdInput.TextSize = 9
+Instance.new("UICorner", CmdInput)
+
+-- BOTÃO NIKE
+local Nike = Instance.new("ImageButton", ScreenGui)
+Nike.Size = UDim2.new(0, 50, 0, 50); Nike.Position = UDim2.new(0.5, -25, 0.6, 0)
+Nike.Image = "rbxassetid://87252800191179"; Nike.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Instance.new("UICorner", Nike); Drag(Nike)
+Nike.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+
+-- LÓGICA DE COMANDOS
+local function FindPlayer(name)
+    name = name:lower()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():find(name) or p.DisplayName:lower():find(name) then return p end
+    end
+end
+
+local function Processar(msg)
+    local m = msg:lower()
+    if m:sub(1,1) == ":" then m = m:sub(2) end
+    local args = m:split(" ")
+    local cmd, val = args[1], args[2]
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        if cmd == "to" and val then
+            local alvo = FindPlayer(val)
+            if alvo and alvo.Character then char.HumanoidRootPart.CFrame = alvo.Character.HumanoidRootPart.CFrame end
+        elseif cmd == "speed" then char.Humanoid.WalkSpeed = tonumber(val) or 16
+        elseif cmd == "jp" then char.Humanoid.JumpPower = tonumber(val) or 50
+        elseif cmd == "nc" then _G.Noclip = not _G.Noclip
+        elseif cmd == "esp" then _G.Esp = not _G.Esp
+        elseif cmd == "re" then char:BreakJoints()
+        elseif cmd == "f" then char.HumanoidRootPart.CFrame = CFrame.new(-943, 98, 2060)
+        end
+    end
+end
+
+CmdInput.FocusLost:Connect(function(enter) if enter then Processar(CmdInput.Text); CmdInput.Text = "" end end)
+Player.Chatted:Connect(Processar)
+
+-- ESP & NOCLIP LOOPS
+RunService.Stepped:Connect(function()
+    if _G.Noclip and Player.Character then
+        for _, v in pairs(Player.Character:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
+        end
+    end
+end)
+
+local function CriarEsp(alvo)
+    if alvo == Player then return end
+    local folder = Instance.new("Folder", ScreenGui)
+    RunService.RenderStepped:Connect(function()
+        if not _G.Esp or not alvo.Character or not alvo.Character:FindFirstChild("Head") then folder:ClearAllChildren(); return end
+        local tag = folder:FindFirstChild("T") or Instance.new("BillboardGui", folder)
+        tag.Name = "T"; tag.Adornee = alvo.Character.Head; tag.Size = UDim2.new(0,100,0,40); tag.AlwaysOnTop = true; tag.StudsOffset = Vector3.new(0,3,0)
+        local l = tag:FindFirstChild("L") or Instance.new("TextLabel", tag)
+        l.Name = "L"; l.Size = UDim2.new(1,0,1,0); l.BackgroundTransparency = 1; l.TextColor3 = Color3.new(1,1,1); l.TextSize = 10; l.Font = "Code"
+        l.Text = alvo.DisplayName.."\n(@"..alvo.Name..")"
+    end)
+end
+for _, p in pairs(Players:GetPlayers()) do CriarEsp(p) end
+Players.PlayerAdded:Connect(CriarEsp)
